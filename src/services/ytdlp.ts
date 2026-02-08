@@ -13,6 +13,7 @@ export interface DownloadResult {
   duration: number;
   title: string;
   fileSize: number;
+  artist?: string;
 }
 
 const MAX_FILE_SIZE_MB = 50;

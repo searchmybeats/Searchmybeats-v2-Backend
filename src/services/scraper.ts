@@ -74,3 +74,43 @@ export async function scrapeChannelSocials(channelId: string): Promise<{ links?:
         return {};
     }
 }
+
+/**
+ * Scrapes BeatStars page for metadata (title, artist)
+ */
+export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: string, artist?: string } | null> {
+    console.log(`[Scraper] Attempting metadata scrape for BeatStars: ${url}`);
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+        });
+
+        if (!response.ok) return null;
+
+        const html = await response.text();
+
+        // BeatStars often puts title in <title> or og:title
+        const titleMatch = html.match(/<meta\s+property="og:title"\s+content="(.*?)"/i) ||
+            html.match(/<title>(.*?)<\/title>/i);
+
+        let title = titleMatch?.[1] || "";
+
+        // Clean up title (often has " | BeatStars" or similar)
+        title = title.split('|')[0].trim();
+        if (title.toLowerCase().endsWith('- beatstars')) {
+            title = title.substring(0, title.length - 11).trim();
+        }
+
+        return {
+            title,
+            artist: undefined // Can be improved if needed
+        };
+    } catch (error) {
+        console.error(`[Scraper] Error scraping BeatStars ${url}:`, error);
+        return null;
+    }
+}

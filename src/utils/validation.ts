@@ -43,6 +43,25 @@ export function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
+ * Extract track ID from BeatStars URL
+ */
+export function extractBeatStarsTrackId(url: string): string | null {
+  // Pattern 1: https://www.beatstars.com/beat/title-id
+  const match = url.match(/-(\d+)$/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Pattern 2: https://www.beatstars.com/TK/id
+  const tkMatch = url.match(/\/TK\/(\d+)/i);
+  if (tkMatch && tkMatch[1]) {
+    return tkMatch[1];
+  }
+
+  return null;
+}
+
+/**
  * Sanitize filename for safe storage
  */
 export function sanitizeFilename(filename: string): string {

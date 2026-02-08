@@ -7,7 +7,13 @@ import {
   searchYouTubeMetadata,
 } from "../services/ytdlp";
 import { uploadToStorage, updateBeat, getBeat } from "../services/firebase";
-import { validateYouTubeUrl, validateBeatStarsUrl } from "../utils/validation";
+import {
+  validateYouTubeUrl,
+  validateBeatStarsUrl,
+  extractBeatStarsTrackId
+} from "../utils/validation";
+import { downloadBeatStarsAudio } from "../services/beatstars";
+import { scrapeBeatStarsMetadata } from "../services/scraper";
 
 export const importRouter = Router();
 
@@ -53,14 +59,9 @@ importRouter.post("/process-import", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Invalid URL format" });
   }
 
-  // BeatStars not yet implemented
+  // BeatStars handling (will be processed in background)
   if (isBeatStars) {
-    await updateBeat(beatId, {
-      status: "failed",
-      _importPending: false,
-      _processingError: "BeatStars import is not yet implemented.",
-    });
-    return res.status(501).json({ error: "BeatStars import not implemented" });
+    console.log(`Received BeatStars import request: ${url}`);
   }
 
   // Respond immediately, process in background
@@ -217,7 +218,28 @@ export async function processImport(
 
     // Download audio
     console.log(`Downloading audio...`);
-    const { filePath, duration, title, fileSize } = await downloadWithYtdlp(url);
+    let downloadResult;
+
+    if (validateBeatStarsUrl(url)) {
+      const trackId = extractBeatStarsTrackId(url);
+      if (!trackId) {
+        throw new Error("Failed to extract BeatStars track ID from URL");
+      }
+
+      // Try to get metadata first for a better title
+      let bsMetadata = await scrapeBeatStarsMetadata(url);
+
+      downloadResult = await downloadBeatStarsAudio(trackId, bsMetadata?.title);
+      // Merge metadata if downloadResult has placeholders
+      if (bsMetadata) {
+        downloadResult.title = bsMetadata.title || downloadResult.title;
+        downloadResult.artist = bsMetadata.artist;
+      }
+    } else {
+      downloadResult = await downloadWithYtdlp(url);
+    }
+
+    const { filePath, duration, title, fileSize, artist: scrapedArtist } = downloadResult;
     tempFilePath = filePath;
 
     console.log(`Download complete: ${title} (${duration}s, ${fileSize} bytes)`);
@@ -240,6 +262,11 @@ export async function processImport(
     // If the title is the placeholder, update it with the video title
     if (beat && (beat.title === "Processing Import..." || !beat.title)) {
       updateData.title = title;
+    }
+
+    // Also update artist if it's missing
+    if (beat && !beat.artist && scrapedArtist) {
+      updateData.artist = scrapedArtist;
     }
 
     await updateBeat(beatId, updateData);
