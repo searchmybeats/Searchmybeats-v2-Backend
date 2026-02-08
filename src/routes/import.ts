@@ -12,7 +12,7 @@ import {
   validateBeatStarsUrl,
   extractBeatStarsTrackId
 } from "../utils/validation";
-import { downloadBeatStarsAudio } from "../services/beatstars";
+import { downloadBeatStarsAudio, resolveBeatStarsUrl } from "../services/beatstars";
 import { scrapeBeatStarsMetadata } from "../services/scraper";
 
 export const importRouter = Router();
@@ -221,13 +221,16 @@ export async function processImport(
     let downloadResult;
 
     if (validateBeatStarsUrl(url)) {
-      const trackId = extractBeatStarsTrackId(url);
+      // Resolve URL first (handles shortlinks and custom domains)
+      const resolvedUrl = await resolveBeatStarsUrl(url);
+      const trackId = extractBeatStarsTrackId(resolvedUrl);
+
       if (!trackId) {
-        throw new Error("Failed to extract BeatStars track ID from URL");
+        throw new Error(`Failed to extract BeatStars track ID from URL (Resolved: ${resolvedUrl})`);
       }
 
       // Try to get metadata first for a better title
-      let bsMetadata = await scrapeBeatStarsMetadata(url);
+      let bsMetadata = await scrapeBeatStarsMetadata(resolvedUrl);
 
       downloadResult = await downloadBeatStarsAudio(trackId, bsMetadata?.title);
       // Merge metadata if downloadResult has placeholders

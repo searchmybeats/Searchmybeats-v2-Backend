@@ -20,7 +20,19 @@ export function validateYouTubeUrl(url: string): boolean {
  * Validate BeatStars URL format
  */
 export function validateBeatStarsUrl(url: string): boolean {
-  return /^(https?:\/\/)?(www\.)?beatstars\.com\//.test(url);
+  try {
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes("bsta.rs")) return true;
+    if (lowerUrl.includes("beatstars.com")) return true;
+
+    // Heuristic for custom domains: must have /beat/ or /track/ in path
+    const parsedUrl = new URL(url);
+    return (
+      parsedUrl.pathname.includes("/beat/") || parsedUrl.pathname.includes("/track/")
+    );
+  } catch {
+    return /beatstars\.com|bsta\.rs/.test(url);
+  }
 }
 
 /**
@@ -46,14 +58,15 @@ export function extractYouTubeVideoId(url: string): string | null {
  * Extract track ID from BeatStars URL
  */
 export function extractBeatStarsTrackId(url: string): string | null {
-  // Pattern 1: https://www.beatstars.com/beat/title-id
-  const match = url.match(/-(\d+)$/);
+  // Pattern 1: /beat/title-alias-ID or /beat/ID
+  // Also handles trailing slashes
+  const match = url.match(/\/beat\/(?:.*-)?(\d+)\/?$/);
   if (match && match[1]) {
     return match[1];
   }
 
-  // Pattern 2: https://www.beatstars.com/TK/id
-  const tkMatch = url.match(/\/TK\/(\d+)/i);
+  // Pattern 2: /TK/ID
+  const tkMatch = url.match(/\/TK\/(\d+)\/?/i);
   if (tkMatch && tkMatch[1]) {
     return tkMatch[1];
   }

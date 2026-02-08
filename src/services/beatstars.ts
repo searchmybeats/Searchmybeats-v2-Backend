@@ -29,10 +29,10 @@ export async function downloadBeatStarsAudio(trackId: string, title?: string): P
                 'Accept': '*/*',
             },
             maxRedirects: 5,
-        });
+        } as any);
 
         const writer = fs.createWriteStream(filePath);
-        response.data.pipe(writer);
+        (response.data as any).pipe(writer);
 
         await new Promise<void>((resolve, reject) => {
             writer.on('finish', () => resolve());
@@ -44,11 +44,9 @@ export async function downloadBeatStarsAudio(trackId: string, title?: string): P
             throw new Error('Downloaded file is too small, likely an error response');
         }
 
-        // Duration is harder to get without ffprobe or downloading metadata
-        // For now, let's just return a placeholder or try to get it if we can find it
         return {
             filePath,
-            duration: 0, // Will be updated if possible or handled as 0
+            duration: 0,
             title: title || `BeatStars Beat ${trackId}`,
             fileSize: stats.size,
         };
@@ -57,5 +55,30 @@ export async function downloadBeatStarsAudio(trackId: string, title?: string): P
             fs.unlinkSync(filePath);
         }
         throw error;
+    }
+}
+
+/**
+ * Resolves a BeatStars URL (handles shortlinks and custom domains)
+ */
+export async function resolveBeatStarsUrl(url: string): Promise<string> {
+    console.log(`[BeatStars] Resolving URL: ${url}`);
+    try {
+        const response = await axios({
+            method: 'get',
+            url: url,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            },
+            maxRedirects: 5,
+            validateStatus: (status: number) => status >= 200 && status < 400,
+        } as any);
+
+        const finalUrl = (response as any).request?.res?.responseUrl || url;
+        console.log(`[BeatStars] Resolved to: ${finalUrl}`);
+        return finalUrl;
+    } catch (error) {
+        console.warn(`[BeatStars] Failed to resolve URL ${url}, using as is:`, (error as Error).message);
+        return url;
     }
 }
