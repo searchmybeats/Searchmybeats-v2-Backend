@@ -229,10 +229,13 @@ export async function processImport(
         throw new Error(`Failed to extract BeatStars track ID from URL (Resolved: ${resolvedUrl})`);
       }
 
-      // Try to get metadata first for a better title
-      let bsMetadata = await scrapeBeatStarsMetadata(resolvedUrl);
+      // Try to get metadata first for a better title, cookies, and HLS fallback
+      const bsMetadata = await scrapeBeatStarsMetadata(resolvedUrl);
 
-      downloadResult = await downloadBeatStarsAudio(trackId, bsMetadata?.title);
+      downloadResult = await downloadBeatStarsAudio(trackId, bsMetadata?.title, {
+        cookies: bsMetadata?.cookies,
+        hlsUrl: bsMetadata?.hlsUrl
+      });
       // Merge metadata if downloadResult has placeholders
       if (bsMetadata) {
         downloadResult.title = bsMetadata.title || downloadResult.title;

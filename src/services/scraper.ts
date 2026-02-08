@@ -76,9 +76,9 @@ export async function scrapeChannelSocials(channelId: string): Promise<{ links?:
 }
 
 /**
- * Scrapes BeatStars page for metadata (title, artist)
+ * Scrapes BeatStars page for metadata and stream URLs
  */
-export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: string, artist?: string } | null> {
+export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: string, artist?: string, hlsUrl?: string, cookies?: string } | null> {
     console.log(`[Scraper] Attempting metadata scrape for BeatStars: ${url}`);
 
     try {
@@ -91,23 +91,37 @@ export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: st
 
         if (!response.ok) return null;
 
+        const cookies = response.headers.get('set-cookie') || "";
         const html = await response.text();
 
-        // BeatStars often puts title in <title> or og:title
+        // 1. Extract Title
         const titleMatch = html.match(/<meta\s+property="og:title"\s+content="(.*?)"/i) ||
             html.match(/<title>(.*?)<\/title>/i);
 
         let title = titleMatch?.[1] || "";
-
-        // Clean up title (often has " | BeatStars" or similar)
         title = title.split('|')[0].trim();
         if (title.toLowerCase().endsWith('- beatstars')) {
             title = title.substring(0, title.length - 11).trim();
         }
 
+        // 2. Extract Artist (often in og:description or a specific meta tag)
+        const artistMatch = html.match(/<meta\s+name="author"\s+content="(.*?)"/i) ||
+            html.match(/<meta\s+property="og:description"\s+content=".*?by\s+(.*?)\.\s/i);
+
+        let artist = artistMatch?.[1] || undefined;
+
+        // 3. Extract HLS Stream URL (.m3u8)
+        // High quality stream is often in a JSON block or script tag
+        const hlsMatch = html.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/i) ||
+            html.match(/"hlsUrl":\s*"(.*?)"/);
+
+        const hlsUrl = hlsMatch?.[1] || hlsMatch?.[0];
+
         return {
             title,
-            artist: undefined // Can be improved if needed
+            artist,
+            hlsUrl,
+            cookies
         };
     } catch (error) {
         console.error(`[Scraper] Error scraping BeatStars ${url}:`, error);
