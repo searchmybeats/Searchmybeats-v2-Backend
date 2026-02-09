@@ -58,17 +58,33 @@ export function extractYouTubeVideoId(url: string): string | null {
  * Extract track ID from BeatStars URL
  */
 export function extractBeatStarsTrackId(url: string): string | null {
-  // Pattern 1: /beat/title-alias-ID or /beat/ID
-  // Also handles trailing slashes
-  const match = url.match(/\/beat\/(?:.*-)?(\d+)\/?$/);
-  if (match && match[1]) {
-    return match[1];
-  }
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
 
-  // Pattern 2: /TK/ID
-  const tkMatch = url.match(/\/TK\/(\d+)\/?/i);
-  if (tkMatch && tkMatch[1]) {
-    return tkMatch[1];
+    // Pattern 1: /beat/title-alias-ID or /beat/ID
+    const beatMatch = pathname.match(/\/beat\/(?:.*-)?(\d+)\/?$/) ||
+      pathname.match(/\/beat\/(\d+)/);
+    if (beatMatch && beatMatch[1]) {
+      return beatMatch[1];
+    }
+
+    // Pattern 2: /TK/ID or /TKID (some variations use TK prefix directly)
+    const tkMatch = pathname.match(/\/TK\/(\d+)/i) ||
+      pathname.match(/\/TK(\d+)/i);
+    if (tkMatch && tkMatch[1]) {
+      return tkMatch[1];
+    }
+
+    // Search anywhere in the URL for common ID patterns if the structure didn't match
+    const anyIdMatch = url.match(/[\/-](\d{7,10})(?:\/|\?|$)/);
+    if (anyIdMatch && anyIdMatch[1]) {
+      return anyIdMatch[1];
+    }
+  } catch {
+    // Fallback to simple regex if URL parsing fails
+    const match = url.match(/\/beat\/(?:.*-)?(\d+)(?:\/|\?|$)/);
+    if (match && match[1]) return match[1];
   }
 
   return null;

@@ -27,22 +27,17 @@ export async function scrapeChannelSocials(channelId: string): Promise<{ links?:
         const result: { links?: any[], description?: string } = {};
 
         // 1. Extract Description
-        // Look for "description":{"simpleText":"..."} inside ytInitialData
-        // This is a rough heuristic but often works for the main description block
         const descriptionMatch = html.match(/"description":\s*\{\s*"simpleText":\s*"(.*?)"/);
         if (descriptionMatch && descriptionMatch[1]) {
-            // Decode unicode escapes if necessary (simple JSON.parse wrapper to unescape)
             try {
                 result.description = JSON.parse(`"${descriptionMatch[1]}"`);
                 console.log(`[Scraper] Found description via regex (${result.description?.length} chars)`);
             } catch (e) {
-                // Fallback if JSON parse fails (e.g. unexpected quotes), just use raw string
                 result.description = descriptionMatch[1];
             }
         }
 
         // 2. Extract Instagram Links (Regex Scan)
-        // We prioritize Instagram as that's our main target
         const instagramMatches = [...html.matchAll(/instagram\.com\/([a-zA-Z0-9_.]+)/g)];
 
         if (instagramMatches.length > 0) {
@@ -84,38 +79,69 @@ export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: st
     try {
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
                 'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1'
             }
         });
 
         if (!response.ok) return null;
 
-        const cookies = response.headers.get('set-cookie') || "";
+        // Extract all cookies from set-cookie headers
+        const cookieHeaders = (response.headers as any).getSetCookie ? (response.headers as any).getSetCookie() : [];
+        const cookies = cookieHeaders.map((c: string) => c.split(';')[0]).join('; ');
+
         const html = await response.text();
 
-        // 1. Extract Title
-        const titleMatch = html.match(/<meta\s+property="og:title"\s+content="(.*?)"/i) ||
-            html.match(/<title>(.*?)<\/title>/i);
+        // 1. Extract JSON Data (BeatStars often embeds a large JSON object with track details)
+        let jsonData: any = null;
+        const jsonMatch = html.match(/<script\s+id="bs-data"\s+type="application\/json">(.*?)<\/script>/s) ||
+            html.match(/window\.__INITIAL_STATE__\s*=\s*(\{.*?\});/s);
 
-        let title = titleMatch?.[1] || "";
-        title = title.split('|')[0].trim();
+        if (jsonMatch) {
+            try {
+                // Remove potential excessive escaping if it's inside a string/comment
+                let cleanJson = jsonMatch[1].trim();
+                jsonData = JSON.parse(cleanJson);
+                console.log(`[Scraper] Successfully parsed JSON data from page`);
+            } catch (e) {
+                console.warn(`[Scraper] Failed to parse JSON data regex match`);
+            }
+        }
+
+        // 2. Extract Title
+        let title = jsonData?.track?.title || jsonData?.track?.name || jsonData?.track?.track_name;
+        if (!title) {
+            const titleMatch = html.match(/<meta\s+property="og:title"\s+content="(.*?)"/i) ||
+                html.match(/<title>(.*?)<\/title>/i);
+            title = titleMatch?.[1] || "";
+        }
+
+        title = title.split('|')[0].replace(/&amp;/g, '&').trim();
         if (title.toLowerCase().endsWith('- beatstars')) {
             title = title.substring(0, title.length - 11).trim();
         }
 
-        // 2. Extract Artist (often in og:description or a specific meta tag)
-        const artistMatch = html.match(/<meta\s+name="author"\s+content="(.*?)"/i) ||
-            html.match(/<meta\s+property="og:description"\s+content=".*?by\s+(.*?)\.\s/i);
+        // 3. Extract Artist
+        let artist = jsonData?.track?.artist?.name || jsonData?.track?.display_name || jsonData?.track?.artist?.display_name;
+        if (!artist) {
+            const artistMatch = html.match(/<meta\s+name="author"\s+content="(.*?)"/i) ||
+                html.match(/<meta\s+property="og:description"\s+content=".*?by\s+(.*?)\.\s/i);
+            artist = artistMatch?.[1] || undefined;
+        }
 
-        let artist = artistMatch?.[1] || undefined;
-
-        // 3. Extract HLS Stream URL (.m3u8)
-        // High quality stream is often in a JSON block or script tag
-        const hlsMatch = html.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/i) ||
-            html.match(/"hlsUrl":\s*"(.*?)"/);
-
-        const hlsUrl = hlsMatch?.[1] || hlsMatch?.[0];
+        // 4. Extract HLS Stream URL (.m3u8)
+        let hlsUrl = jsonData?.track?.hls_url || jsonData?.track?.streams?.hls || jsonData?.track?.stream_url;
+        if (!hlsUrl) {
+            const hlsMatch = html.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/i) ||
+                html.match(/"hlsUrl":\s*"(.*?)"/);
+            hlsUrl = hlsMatch?.[1] || hlsMatch?.[0];
+        }
 
         return {
             title,
