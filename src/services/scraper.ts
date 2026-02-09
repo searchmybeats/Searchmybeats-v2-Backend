@@ -116,15 +116,44 @@ export async function scrapeBeatStarsMetadata(url: string): Promise<{ title?: st
 
         // 2. Extract Title
         let title = jsonData?.track?.title || jsonData?.track?.name || jsonData?.track?.track_name;
-        if (!title) {
+
+        // If no title in JSON or it's a generic placeholder, try meta tags
+        const genericTitles = ["buy beats online", "beatstars", "beatstars.com", "home | beatstars"];
+        const isGeneric = (t: string) => genericTitles.some(g => t.toLowerCase().includes(g));
+
+        if (!title || isGeneric(title)) {
             const titleMatch = html.match(/<meta\s+property="og:title"\s+content="(.*?)"/i) ||
+                html.match(/<meta\s+name="twitter:title"\s+content="(.*?)"/i) ||
                 html.match(/<title>(.*?)<\/title>/i);
-            title = titleMatch?.[1] || "";
+            const candidate = titleMatch?.[1] || "";
+            if (candidate && !isGeneric(candidate)) {
+                title = candidate;
+            }
         }
 
-        title = title.split('|')[0].replace(/&amp;/g, '&').trim();
-        if (title.toLowerCase().endsWith('- beatstars')) {
-            title = title.substring(0, title.length - 11).trim();
+        // Final fallback: Extract from URL slug if still generic or empty
+        if (!title || isGeneric(title)) {
+            try {
+                const urlObj = new URL(url);
+                const pathParts = urlObj.pathname.split('/');
+                // BeatStars URLs are usually /beat/[slug]-[id]
+                const slugPart = pathParts.find(p => p.includes('-')) || pathParts[2];
+                if (slugPart) {
+                    // Extract name by removing ID suffix if possible
+                    title = slugPart.replace(/-\d+$/, '').replace(/-/g, ' ');
+                    title = title.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    console.log(`[Scraper] Fallback to URL slug title: ${title}`);
+                }
+            } catch (e) {
+                console.warn(`[Scraper] Failed to extract title from URL slug`);
+            }
+        }
+
+        if (title) {
+            title = title.split('|')[0].replace(/&amp;/g, '&').replace(/&quot;/g, '"').trim();
+            if (title.toLowerCase().endsWith('- beatstars')) {
+                title = title.substring(0, title.length - 11).trim();
+            }
         }
 
         // 3. Extract Artist
