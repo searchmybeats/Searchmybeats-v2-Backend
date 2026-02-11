@@ -130,6 +130,13 @@ function buildYtdlpCommand(url: string, outputTemplate: string): string {
   // Escape the URL
   const escapedUrl = url.replace(/"/g, '\\"');
 
+  // Check for cookies.txt
+  const cookiesPath = path.join(process.cwd(), "cookies.txt");
+  if (fs.existsSync(cookiesPath)) {
+    console.log("Using cookies from cookies.txt");
+    flags.push(`--cookies "${cookiesPath}"`);
+  }
+
   return `yt-dlp ${flags.join(" ")} "${escapedUrl}"`;
 }
 
@@ -173,6 +180,12 @@ export async function getMetadataOnly(url: string): Promise<any> {
 
   // Escape the URL
   const escapedUrl = url.replace(/"/g, '\\"');
+  // Check for cookies.txt
+  const cookiesPath = path.join(process.cwd(), "cookies.txt");
+  if (fs.existsSync(cookiesPath)) {
+    flags.push(`--cookies "${cookiesPath}"`);
+  }
+
   const command = `yt-dlp ${flags.join(" ")} "${escapedUrl}"`;
 
   try {
@@ -228,6 +241,12 @@ export async function searchYouTubeMetadata(query: string): Promise<any> {
 
   // ytsearch1:query
   const escapedQuery = query.replace(/"/g, '\\"');
+  // Check for cookies.txt
+  const cookiesPath = path.join(process.cwd(), "cookies.txt");
+  if (fs.existsSync(cookiesPath)) {
+    flags.push(`--cookies "${cookiesPath}"`);
+  }
+
   const command = `yt-dlp ${flags.join(" ")} "ytsearch1:${escapedQuery}"`;
 
   try {
