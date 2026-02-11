@@ -137,6 +137,11 @@ function buildYtdlpCommand(url: string, outputTemplate: string): string {
     flags.push(`--cookies "${cookiesPath}"`);
   }
 
+  // Force Deno runtime if available (fixes "JS runtimes: none" error)
+  if (fs.existsSync("/usr/local/bin/deno")) {
+    flags.push('--js-runtimes "deno:/usr/local/bin/deno"');
+  }
+
   return `yt-dlp ${flags.join(" ")} "${escapedUrl}"`;
 }
 
@@ -184,6 +189,11 @@ export async function getMetadataOnly(url: string): Promise<any> {
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
   if (fs.existsSync(cookiesPath)) {
     flags.push(`--cookies "${cookiesPath}"`);
+  }
+
+  // Force Deno runtime
+  if (fs.existsSync("/usr/local/bin/deno")) {
+    flags.push('--js-runtimes "deno:/usr/local/bin/deno"');
   }
 
   const command = `yt-dlp ${flags.join(" ")} "${escapedUrl}"`;
@@ -245,6 +255,11 @@ export async function searchYouTubeMetadata(query: string): Promise<any> {
   const cookiesPath = path.join(process.cwd(), "cookies.txt");
   if (fs.existsSync(cookiesPath)) {
     flags.push(`--cookies "${cookiesPath}"`);
+  }
+
+  // Force Deno runtime
+  if (fs.existsSync("/usr/local/bin/deno")) {
+    flags.push('--js-runtimes "deno:/usr/local/bin/deno"');
   }
 
   const command = `yt-dlp ${flags.join(" ")} "ytsearch1:${escapedQuery}"`;
