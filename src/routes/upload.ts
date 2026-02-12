@@ -133,17 +133,18 @@ uploadRouter.delete("/", async (req: Request, res: Response) => {
 
     try {
         const filePath = path.join(process.cwd(), "storage/uploads", filename);
+        console.log(`[DEBUG] Attempting to delete: ${filename} at ${filePath}`);
 
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
-            console.log(`Deleted file: ${filename}`);
+            console.log(`[DEBUG] Deleted file successfully: ${filename}`);
             res.json({ message: "File deleted successfully" });
         } else {
-            console.warn(`File not found for deletion: ${filename}`);
+            console.warn(`[DEBUG] File not found for deletion: ${filePath}`);
             res.status(404).json({ error: "File not found" });
         }
     } catch (error) {
-        console.error("Delete error:", error);
+        console.error("[DEBUG] Delete error:", error);
         res.status(500).json({ error: "Failed to delete file" });
     }
 });

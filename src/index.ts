@@ -42,19 +42,30 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Debug logging middleware
+app.use((req, res, next) => {
+  console.log(`[DEBUG] ${req.method} ${req.url} (Original: ${req.originalUrl})`);
+  next();
+});
+
 // API routes
 app.use("/api", importRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/upload", uploadRouter); // Fallback for Nginx stripping
 
 // Serve uploads statically
-// Ensure storage directory exists
 import fs from "fs";
 import path from "path";
 const uploadDir = path.join(process.cwd(), "storage/uploads");
+console.log("[DEBUG] Serving static files from:", uploadDir);
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
+// Mount at both locations to handle Nginx variants
 app.use("/api/uploads", express.static(uploadDir));
+app.use("/uploads", express.static(uploadDir));
 
 // Error handling middleware
 app.use(
