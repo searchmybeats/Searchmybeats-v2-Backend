@@ -14,6 +14,7 @@ import {
 } from "../utils/validation";
 import { downloadBeatStarsAudio, resolveBeatStarsUrl } from "../services/beatstars";
 import { scrapeBeatStarsMetadata } from "../services/scraper";
+import { saveToLocalStorage } from "../services/storage";
 
 export const importRouter = Router();
 
@@ -250,14 +251,30 @@ export async function processImport(
 
     console.log(`Download complete: ${title} (${duration}s, ${fileSize} bytes)`);
 
-    // Upload to Firebase Storage
-    console.log(`Uploading to Firebase Storage...`);
-    const { audioUrl } = await uploadToStorage(filePath, userId, beatId);
+    // Upload to Local VPS Storage (was Firebase)
+    console.log(`Saving to VPS Storage...`);
+    const { url: audioUrl } = await saveToLocalStorage(filePath, `${beatId}.mp3`);
+
+    // Convert relative URL to full URL if possible, but /uploads/.. works for frontend
+    // We will store the full URL if we knew the domain, but for now let's store /uploads/...
+    // Wait, the frontend might expect a full URL. 
+    // Let's rely on the frontend to handle /uploads/ or prepend the VPS_URL.
+    // Actually, to be safe and consistent with Firebase (which returns full URLs), 
+    // we should try to construct a full URL.
+    // Since we don't have request context here, we can use an ENV var VPS_URL or just store relative.
+    // Storing relative is better for migration (if domain changes).
+
+    // However, existing logic expects full URL. 
+    // Let's prepend the VPS_URL from env if available.
+    const baseUrl = process.env.VPS_URL || "https://searchmybeats.com";
+    // remove trailing slash from baseUrl if present
+    const cleanBaseUrl = baseUrl.replace(/\/$/, "");
+    const fullAudioUrl = `${cleanBaseUrl}${audioUrl}`;
 
     // Get current beat to check if we should update the title
     const beat = await getBeat(beatId);
     const updateData: any = {
-      audioUrl,
+      audioUrl: fullAudioUrl,
       fileSize,
       duration: Math.round(duration),
       status: "pending", // Ready to scan

@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { importRouter } from "./routes/import";
+import { uploadRouter } from "./routes/upload";
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,17 @@ app.get("/health", (req, res) => {
 
 // API routes
 app.use("/api", importRouter);
+app.use("/api/upload", uploadRouter);
+
+// Serve uploads statically
+// Ensure storage directory exists
+import fs from "fs";
+import path from "path";
+const uploadDir = path.join(process.cwd(), "storage/uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+app.use("/uploads", express.static(uploadDir));
 
 // Error handling middleware
 app.use(

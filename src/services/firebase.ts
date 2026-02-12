@@ -106,6 +106,13 @@ export async function getBeat(
 }
 
 /**
+ * Verify Firebase ID Token
+ */
+export async function verifyIdToken(token: string): Promise<admin.auth.DecodedIdToken> {
+  return admin.auth().verifyIdToken(token);
+}
+
+/**
  * Get all pending import beats (for polling fallback)
  */
 export async function getPendingImports(): Promise<
