@@ -1,32 +1,39 @@
-import { db } from "./src/lib/firebase"; // Assuming this exists or using admin SDK
-// Actually, since this runs on VPS/Local with Admin SDK usually:
-
-import { getFirestore } from "firebase-admin/firestore";
-import { initializeApp, cert } from "firebase-admin/app";
-import * as fs from "fs";
+import * as admin from "firebase-admin";
+import * as dotenv from "dotenv";
 import * as path from "path";
 
-// Path to your service account key
-const SERVICE_ACCOUNT_PATH = path.join(__dirname, "../service-account.json");
+// Load environment variables from the parent directory's .env file
+dotenv.config({ path: path.join(__dirname, "../.env") });
 
-if (!fs.existsSync(SERVICE_ACCOUNT_PATH)) {
-    console.error("Service account file not found at:", SERVICE_ACCOUNT_PATH);
-    process.exit(1);
-}
-
-const serviceAccount = JSON.parse(fs.readFileSync(SERVICE_ACCOUNT_PATH, "utf8"));
-
-initializeApp({
-    credential: cert(serviceAccount)
-});
-
-const db = getFirestore();
-
+/**
+ * standalone script to fix corrupted credits.available in Firestore.
+ */
 async function fixCorruptedCredits() {
+    if (!admin.apps.length) {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+
+        if (projectId && clientEmail && privateKey) {
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId,
+                    clientEmail,
+                    privateKey,
+                }),
+            });
+            console.log("Firebase Admin initialized with service account.");
+        } else {
+            console.error("Missing Firebase credentials in .env file.");
+            process.exit(1);
+        }
+    }
+
+    const db = admin.firestore();
     const usersRef = db.collection("users");
     const snapshot = await usersRef.get();
 
-    console.log(`Scanning ${snapshot.size} users...`);
+    console.log(`Scanning ${snapshot.size} users for corrupted data...`);
 
     let fixedCount = 0;
 
@@ -34,10 +41,11 @@ async function fixCorruptedCredits() {
         const data = doc.data();
         const credits = data.credits;
 
+        // Check if available is an object instead of a number
         if (credits && typeof credits.available === "object" && credits.available !== null) {
             console.log(`Found corrupted credits for user: ${data.email || doc.id}`);
 
-            // Extract the number from the object { available: X }
+            // Extract the numeric value from the corrupted object { available: X }
             const actualAvailable = (credits.available as any).available;
 
             if (typeof actualAvailable === "number") {
@@ -53,6 +61,10 @@ async function fixCorruptedCredits() {
     }
 
     console.log(`Done. Fixed ${fixedCount} users.`);
+    process.exit(0);
 }
 
-fixCorruptedCredits().catch(console.error);
+fixCorruptedCredits().catch(err => {
+    console.error("Repair failed:", err);
+    process.exit(1);
+});
