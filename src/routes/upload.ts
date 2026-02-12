@@ -148,3 +148,11 @@ uploadRouter.delete("/", async (req: Request, res: Response) => {
         res.status(500).json({ error: "Failed to delete file" });
     }
 });
+
+/**
+ * GET /api/upload/ping
+ * Test connectivity to this router
+ */
+uploadRouter.get("/ping", (req: Request, res: Response) => {
+    res.json({ message: "Upload router is reachable", timestamp: new Date() });
+});

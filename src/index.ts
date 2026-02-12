@@ -20,8 +20,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
   })
 );
 app.use(express.json());
