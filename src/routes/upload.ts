@@ -76,7 +76,7 @@ uploadRouter.post(
             // If hosted behind Nginx/Cloudflare, PROTOCOL might be https
             const protocol = req.headers["x-forwarded-proto"] || req.protocol;
             const host = req.headers["host"];
-            const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+            const fileUrl = `${protocol}://${host}/api/uploads/${req.file.filename}`;
 
             res.json({
                 url: fileUrl,

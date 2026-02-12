@@ -54,7 +54,7 @@ const uploadDir = path.join(process.cwd(), "storage/uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
-app.use("/uploads", express.static(uploadDir));
+app.use("/api/uploads", express.static(uploadDir));
 
 // Error handling middleware
 app.use(

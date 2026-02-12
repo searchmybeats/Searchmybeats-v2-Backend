@@ -256,7 +256,7 @@ export async function processImport(
     const { url: audioUrl } = await saveToLocalStorage(filePath, `${beatId}.mp3`);
 
     // Convert relative URL to full URL if possible, but /uploads/.. works for frontend
-    // We will store the full URL if we knew the domain, but for now let's store /uploads/...
+    // We will store the full URL if we knew the domain, but for now let's store /api/uploads/...
     // Wait, the frontend might expect a full URL. 
     // Let's rely on the frontend to handle /uploads/ or prepend the VPS_URL.
     // Actually, to be safe and consistent with Firebase (which returns full URLs), 

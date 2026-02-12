@@ -48,7 +48,7 @@ export async function saveToLocalStorage(
     // Let's return the relative URL and let the controller prepend host if needed, 
     // OR just return /uploads/filename which is Root-Relative and works fine in browsers.
 
-    const url = `/uploads/${filename}`;
+    const url = `/api/uploads/${filename}`;
 
     return {
         url,
