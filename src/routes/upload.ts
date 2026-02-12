@@ -72,11 +72,17 @@ uploadRouter.post(
 
         try {
             // Construct public URL
-            // We assume the server is accessible via the configured domain/IP
-            // If hosted behind Nginx/Cloudflare, PROTOCOL might be https
-            const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-            const host = req.headers["host"];
-            const fileUrl = `${protocol}://${host}/api/uploads/${req.file.filename}`;
+            // Prefer VPS_URL from env, otherwise fallback to request headers
+            let baseUrl = "";
+            if (process.env.VPS_URL) {
+                baseUrl = process.env.VPS_URL.replace(/\/$/, "");
+            } else {
+                const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+                const host = req.headers["host"];
+                baseUrl = `${protocol}://${host}`;
+            }
+
+            const fileUrl = `${baseUrl}/api/uploads/${req.file.filename}`;
 
             res.json({
                 url: fileUrl,
