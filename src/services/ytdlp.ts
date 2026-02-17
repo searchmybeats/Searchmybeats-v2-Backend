@@ -29,9 +29,8 @@ export async function downloadWithYtdlp(url: string): Promise<DownloadResult> {
 
   // Build yt-dlp command
   const command = buildYtdlpCommand(url, outputTemplate);
-
-  console.log(`Executing yt-dlp for: ${url}`);
-  console.log(`Output template: ${outputTemplate}`);
+  const maskedCommand = command.replace(/--cookies ".*?"/, '--cookies "****"');
+  console.log(`Executing: ${maskedCommand}`);
 
   try {
     const { stdout, stderr } = await execAsync(command, {
@@ -45,7 +44,7 @@ export async function downloadWithYtdlp(url: string): Promise<DownloadResult> {
         .split("\n")
         .filter((line) => !line.includes("WARNING"));
       if (errors.length > 0) {
-        console.warn("yt-dlp stderr:", errors.join("\n"));
+        console.warn(`[yt-dlp stderr] for ${url}:`, errors.join("\n"));
       }
     }
 
