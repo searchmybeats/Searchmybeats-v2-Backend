@@ -129,16 +129,40 @@ function buildYtdlpCommand(url: string, outputTemplate: string): string {
   // Escape the URL
   const escapedUrl = url.replace(/"/g, '\\"');
 
-  // Check for cookies.txt
-  const cookiesPath = path.join(process.cwd(), "cookies.txt");
-  if (fs.existsSync(cookiesPath)) {
-    console.log("Using cookies from cookies.txt");
-    flags.push(`--cookies "${cookiesPath}"`);
+  // Check for cookies.txt in multiple locations
+  const possibleCookiePaths = [
+    path.join(process.cwd(), "cookies.txt"),
+    path.join(__dirname, "../../cookies.txt"), // From dist/services/ to root
+    path.join(__dirname, "../cookies.txt"),    // From src/services/ to root
+  ];
+
+  let cookiesPath = "";
+  for (const p of possibleCookiePaths) {
+    if (fs.existsSync(p)) {
+      cookiesPath = p;
+      break;
+    }
   }
 
-  // Force Deno runtime if available (fixes "JS runtimes: none" error)
-  if (fs.existsSync("/usr/local/bin/deno")) {
-    flags.push('--js-runtimes "deno:/usr/local/bin/deno"');
+  if (cookiesPath) {
+    console.log(`[yt-dlp] Using cookies from: ${cookiesPath}`);
+    flags.push(`--cookies "${cookiesPath}"`);
+  } else {
+    console.warn("[yt-dlp] No cookies.txt found in common locations");
+  }
+
+  // Force Deno runtime if available
+  const possibleDenoPaths = ["/usr/local/bin/deno", "/usr/bin/deno"];
+  let denoPath = "";
+  for (const p of possibleDenoPaths) {
+    if (fs.existsSync(p)) {
+      denoPath = p;
+      break;
+    }
+  }
+
+  if (denoPath) {
+    flags.push(`--js-runtimes "deno:${denoPath}"`);
   }
 
   return `yt-dlp ${flags.join(" ")} "${escapedUrl}"`;
