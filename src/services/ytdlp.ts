@@ -103,14 +103,10 @@ export async function downloadWithYtdlp(url: string): Promise<DownloadResult> {
  */
 function buildYtdlpCommand(url: string, outputTemplate: string): string {
   const flags = [
-    // Format selection - best audio
+    // Format selection - permissive best audio
     '-f "bestaudio/best"',
-    // Extract audio and convert to MP3
-    "-x",
-    "--audio-format mp3",
-    "--audio-quality 0", // Best quality
-    // Output template
-    `-o "${outputTemplate}.%(ext)s"`,
+    // Fallback to any audio if bestaudio fails
+    "--prefer-free-formats",
     // Performance and reliability
     "--no-check-certificates",
     "--no-warnings",
